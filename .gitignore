@@ -218,3 +218,21 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Local editor and operating-system files
+.idea/
+.vscode/
+*.code-workspace
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Generated logs and temporary outputs
+logs/
+tmp/
+temp/
+outputs/
+*.tmp
+*.temp

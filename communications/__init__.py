@@ -1,0 +1,1 @@
+"""Local WebSocket communication prototype"""
