@@ -2,8 +2,10 @@
 
 import argparse
 import asyncio
+import json
 import logging
 import math
+import signal
 from functools import partial
 
 from websockets.asyncio.server import serve
@@ -53,22 +55,35 @@ async def send_events(connection, *, events, interval=1.0, count=10,
     except ConnectionClosed as error:
         LOG.info("Client disconnected: %s", error)
 
-    except Exception:
-        LOG.exception("Send failed")
-
     finally:
         LOG.info("Connection finished: %s; sent=%d", connection.remote_address, sent)
 
 
+async def receive_messages(connection):
+    try:
+        async for frame in connection:
+            try:
+                message = json.loads(frame)
+                if not isinstance(message, dict):
+                    raise ValueError("expected a JSON object")
+            except (ValueError, TypeError) as error:
+                LOG.warning("Ignored Unity message: %s", error)
+                continue
+            LOG.info("Received from Unity: %s", message)
+    except ConnectionClosed:
+        pass
+
+
 async def handle_connection(connection, args):
-    await send_events(
+    # Listen on the same connection while the mock recommendations are constantly being sent.
+    await asyncio.gather(receive_messages(connection), send_events(
         connection,
         events=generate_events(args.tags, args.intensity),
         interval=args.interval,
         count=None if args.continuous else args.count, # None means send until disconnect
         test_invalid=args.test_invalid,
         test_duplicate=args.test_duplicate,
-    )
+    ))
 
 
 def parse_args(argv=None):
@@ -114,6 +129,8 @@ async def run(args):
 
 
 def main():
+    if hasattr(signal, "SIGBREAK"):
+        signal.signal(signal.SIGBREAK, signal.default_int_handler)
     args = parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     try:

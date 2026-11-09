@@ -130,7 +130,62 @@ From `CapstoneData`:
 .venv/bin/python -m unittest discover -s tests -v
 ```
 
-**Note:** The current prototype here only handles Python-to-Unity mock event communication.
+**Note:** Python sends mock recommendations for next event
 
 
 ## Auto-start both:
+
+From `CapstoneData`:
+
+**macOS**
+
+```bash
+.venv/bin/python scripts/start_dev.py
+```
+
+The launcher starts Python and verifies its WebSocket handshake. If the 
+`CapstoneGame` project is already open, it reuses that Editor and its current scenes. It enters Play Mode if needed, or reconnects the receiver if already playing. Else it opens the project in the version from `ProjectVersion.txt` and enters `Assets/Scenes/WebSocketPrototype.unity` in Play Mode.
+
+With no server options it uses continuous mock traffic. 
+
+Press **Ctrl+C** to stop Python and exit Play Mode only if the launcher started it.
+
+An Editor opened by the launcher closes only when there is no unsaved content.
+
+To stop Python and also close Unity (including a reused Editor), run this in
+another terminal from `CapstoneData`:
+
+```bash
+.venv/bin/python scripts/stop_dev.py
+```
+
+OR Stopping Play Mode in Unity or closing its Editor.
+
+If Unity is already open, let it finish compiling before running the launcher. If it doesn’t connect, try Assets > Refresh and run it again.
+
+Server only:
+
+```bash
+.venv/bin/python scripts/start_dev.py --server-only
+```
+
+Custom paths and server options:
+
+```bash
+.venv/bin/python scripts/start_dev.py --unity-editor "/path/to/Unity executable" --project "/path/to/CapstoneGame" -- --port 9000 --tags ENCOUNTER --continuous
+```
+
+You can just run the script with no options, but for clarity and docs sake: 
+
+- `--server-only`: starts Python without opening or controlling Unity.
+- `--project`: points to your Unity project if it isn't in the sibling `CapstoneGame` folder.
+- `--unity-editor`: points to `Unity.exe` or `Unity.app` if Unity is installed somewhere else.
+- `--scene`: picks the scene to open in a new Editor. The default is `Assets/Scenes/WebSocketPrototype.unity`; an already-open Editor will use its current scene
+- `--`: anything after this goes to the Python server, like `-- --port 9000 --continuous`.
+- `--help`: shows these options in the terminal.
+
+With no server options, mock events run continuously. If you add server options after `--`, include ur parsing commands.
+
+Check the Unity Console to see the mock events coming in.
+
+# BIG NOTE!!!! to test in windows.
