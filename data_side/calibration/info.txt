@@ -1,0 +1,5 @@
+input: calibration start and end time from the game, eeg and heart rate from the collector
+
+process: when calibration ends, it waits for the last eeg to come in, takes the eeg from the calibration period, cleans it and fits player baseline and game difficulty. then analysis use this to compare with to get the change from event
+
+output: the player's calibration profile, given to gameplay analysis and saved in data_brain.json for the profiler

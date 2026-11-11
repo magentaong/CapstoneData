@@ -1,0 +1,5 @@
+input: everything the eeg bridge sends on udp 5001 (eeg, heart rate, bands, contact quality)
+
+process: collector listens to the bridge and sorts each message, eeg gets split into the 4 channels, converted to µV and timestamped, then kept in the buffer for the last 30 mins. everything also gets written to the session csvs. if no data comes for 10s it tells the bridge to start again. cleaner is meant to clean the eeg and flag bad samples.
+
+output: the eeg between any two times (for calibration and analysis), heart rate between two times, and start/stop/evoke commands back to the bridge on udp 5005

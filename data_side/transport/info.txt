@@ -1,0 +1,5 @@
+input: unity connection over websocket on ws://127.0.0.1:8765, and results from event sender
+
+process: just passes things along without checking them. input messages go to the input logger, everything else goes to the event receiver. results get sent back to unity on the same connection.
+
+output: messages handed to the input logger or event receiver, results sent to unity

@@ -1,6 +1,7 @@
 """
 Shared config + tiny UDP/JSON messaging helpers.
 
+UDP is used for the EEG bridge, the game connects over WebSocket (GAME_WS_PORT).
 Every message is a JSON dict.
 time.time() (Unix seconds) is a shared clock.
 
@@ -14,16 +15,12 @@ import time
 HOST = "127.0.0.1"
 
 PORT_EEG_IN = 5001       # EEG bridge -> Data Brain
-PORT_BRAIN_IN = 5002     # Game -> Data Brain
-PORT_GAME_IN = 5003      # Data Brain -> Game
-PORT_LOGGER_IN = 5004    # Game -> Input Logger
 PORT_BRIDGE_CMD = 5005   # Data Brain -> EEG bridge
-PORT_PROFILER_IN = 5006  # Data Brain + Input Logger -> Profiler 
-# TODO: GAME_WS_PORT = 8765 (Unity <-> Data Brain WebSocket) replaces 5002 / 5003
+GAME_WS_PORT = 8765     # Unity <-> Data Brain WebSocket
 
 # EEG variables
 FS = 250                                  # Hz
-CHANNELS = ["fp1", "fp2", "t3", "t4"]     # need to check which channel is which reading
+CHANNELS = ["Right", "Center-Right", "Center-Left", "Left"]     # need to check which channel is which reading
 UV_PER_UNIT = 0.61                        # raw unit -> microvolts
 MAINS_HZ = 50
 EEG_LAYOUT = "channel_major"              # "channel_major" or "interleaved"

@@ -1,0 +1,5 @@
+input: neeuro headset over bluetooth, and start/stop/evoke commands from python on udp 5005
+
+process: connects to the headset through the neeuro sdk, collects eeg, heart rate, bands, mental states and contact quality, turns them into json and sends them on.
+
+output: eeg samples, heart rate, bands, mental states and contact quality sent to python on udp 5001
