@@ -6,12 +6,13 @@ import json
 import logging
 import math
 import signal
+import threading
 from functools import partial
 
 from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosed
 
-from .mock_events import DEFAULT_TAGS, generate_events, serialize_event
+from .mock_events import DEFAULT_TAGS, create_event, generate_events, serialize_event
 
 LOG = logging.getLogger("mock-events")
 
@@ -35,7 +36,7 @@ async def send_events(connection, *, events, interval=1.0, count=10,
             message = serialize_event(event)
             await connection.send(message)
             sent += 1
-            LOG.info("Sent id=%s sequence=%s", event["message_id"], event["sequence"])
+            LOG.info("Sent id=%s", event["message_id"])
 
             if test_duplicate and sent == 1:
                 await connection.send(message)
@@ -59,19 +60,86 @@ async def send_events(connection, *, events, interval=1.0, count=10,
         LOG.info("Connection finished: %s; sent=%d", connection.remote_address, sent)
 
 
-async def receive_messages(connection):
+async def receive_messages(connection, on_game_message=None, on_input_message=None):
     try:
         async for frame in connection:
             try:
                 message = json.loads(frame)
-                if not isinstance(message, dict):
+                if not isinstance(message, dict) and on_game_message is None:
                     raise ValueError("expected a JSON object")
             except (ValueError, TypeError) as error:
                 LOG.warning("Ignored Unity message: %s", error)
                 continue
             LOG.info("Received from Unity: %s", message)
+            if on_game_message is not None:
+                handle = (on_input_message if isinstance(message, dict) and message.get("type") == "input"
+                          else on_game_message)
+                try:
+                    await asyncio.to_thread(handle, message)
+                except Exception as error:
+                    LOG.warning("Error handling Unity message: %r", error)
     except ConnectionClosed:
         pass
+
+
+class WebSocketGameTransport:
+    def __init__(self, on_game_message, on_input_message, host="127.0.0.1", port=8765):
+        self.on_game_message = on_game_message
+        self.on_input_message = on_input_message
+        self.host, self.port = host, port
+        self.clients = set()
+        self.loop = None
+        self.stopped = None
+
+    def start(self):
+        ready = threading.Event()
+        threading.Thread(target=self._run, args=(ready,), daemon=True).start()
+        ready.wait(5)
+
+    def stop(self):
+        if self.loop and self.stopped:
+            self.loop.call_soon_threadsafe(self.stopped.set)
+
+    def send(self, payload):
+        if not self.clients:
+            raise ConnectionError("no game connected")
+        # Data Brain supplies the bare recommendation payload.
+        if "event_tag" in payload and "intensity" in payload:
+            payload = create_event(payload["event_tag"], payload["intensity"])
+        data = serialize_event(payload)
+        asyncio.run_coroutine_threadsafe(self._broadcast(data), self.loop).result(timeout=2)
+
+    async def _broadcast(self, data):
+        for ws in list(self.clients):
+            try:
+                await ws.send(data)
+            except ConnectionClosed:
+                self.clients.discard(ws)
+
+    async def _handle(self, ws):
+        self.clients.add(ws)
+        print(f"[websocket] game connected {ws.remote_address}")
+        try:
+            await receive_messages(ws, self.on_game_message, self.on_input_message)
+        finally:
+            self.clients.discard(ws)
+            print(f"[websocket] game disconnected {ws.remote_address}")
+
+    def _run(self, ready):
+        try:
+            asyncio.run(self._serve(ready))
+        except OSError as error:
+            print(f"[websocket] cannot start on port {self.port}: {error!r}")
+            ready.set()
+
+    async def _serve(self, ready=None, handler=None):
+        self.loop = asyncio.get_running_loop()
+        self.stopped = asyncio.Event()
+        async with serve(handler or self._handle, self.host, self.port):
+            print(f"[websocket] listening on ws://{self.host}:{self.port}")
+            if ready is not None:
+                ready.set()
+            await self.stopped.wait()
 
 
 async def handle_connection(connection, args):
@@ -123,9 +191,8 @@ def parse_args(argv=None):
 # the main server logic is here
 async def run(args):
     """Run the WebSocket server until interrupted (ctrl-c)"""
-    async with serve( partial(handle_connection, args=args),"127.0.0.1", args.port):
-        LOG.info("WebSocket server running on port %d", args.port)
-        await asyncio.Event().wait()
+    transport = WebSocketGameTransport(None, None, port=args.port)
+    await transport._serve(handler=partial(handle_connection, args=args))
 
 
 def main():
