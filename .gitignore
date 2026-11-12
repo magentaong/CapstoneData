@@ -236,3 +236,5 @@ temp/
 outputs/
 *.tmp
 *.temp
+
+data_side/eeg_bridge/obj/
