@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <RootNamespace>EegBridge</RootNamespace>
+    <AssemblyName>EegBridge</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Configuration" />
+  </ItemGroup>
+
+  <PropertyGroup Condition="Exists('lib\SenzeBandWindowsIPC_ClientDLL.dll')">
+    <DefineConstants>$(DefineConstants);NEEURO_SDK</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup Condition="Exists('lib\SenzeBandWindowsIPC_ClientDLL.dll')">
+    <Reference Include="SenzeBandWindowsIPC_ClientDLL">
+      <HintPath>lib\SenzeBandWindowsIPC_ClientDLL.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="SharpOSC">
+      <HintPath>lib\SharpOSC.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="CopyWinRes" AfterTargets="Build" Condition="Exists('win_res')">
+    <ItemGroup>
+      <WinResFiles Include="win_res\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(WinResFiles)"
+          DestinationFiles="@(WinResFiles->'$(TargetDir)win_res\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+</Project>

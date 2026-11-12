@@ -1,0 +1,26 @@
+numpy
+websockets==15.0.1
+
+# not sure if need these below but in case to confirm all the libraries used in the code:
+
+# Python 3.12 (the code needs 3.7 or newer)
+# bisect
+# collections
+# csv
+# dataclasses
+# datetime
+# json
+# os
+# socket
+# sys
+# threading
+# time
+# typing
+
+# EEG bridge (eeg_bridge/), not installed with pip:
+# Windows 10 or 11 (includes .NET Framework 4.8)
+# .NET SDK 8 to build it: winget install Microsoft.DotNet.SDK.8
+# Neeuro SDK files from NeeuroOS-Windows-Std-Sample_S2.0.0-RC7:
+#   eeg_bridge/lib/SenzeBandWindowsIPC_ClientDLL.dll
+#   eeg_bridge/lib/SharpOSC.dll
+#   eeg_bridge/win_res/.server/ (6 files)

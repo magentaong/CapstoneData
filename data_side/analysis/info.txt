@@ -1,0 +1,5 @@
+input: one game event (stress type, start time, end time), eeg samples data from that time, the player's baseline from calibration
+
+process: waits until eeg for event has arrived, takes that piece of eeg, cleans it, flags bad samples, pulls out features and compares them to the baseline
+
+output: stress type + intensity 1-5, or nothing if got nothing to send

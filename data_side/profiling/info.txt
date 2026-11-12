@@ -1,0 +1,5 @@
+input: player inputs ({"type": "input", "t": ..., "action": ..., anything else}), and data_brain.json + inputs.csv + calibration profile when the game ends
+
+process: input logger saves every input to inputs.csv during the game. when the game ends the profiler reads the session summary, the inputs and the calibration, summarises the inputs and builds profile.
+
+output: inputs.csv and profile.json in the session folder

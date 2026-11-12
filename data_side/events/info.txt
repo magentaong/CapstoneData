@@ -1,0 +1,5 @@
+input: messages from the game (calibration_start, calibration_end, game_start, game events with stress_type + start_time + end_time, game_end), and stress results from analysis
+
+process: receiver checks what type of message it is and passes it to the right data brain function. sender checks that result has valid stress type and intensity 1-5 before send
+
+output: calls to the data brain functions, and {"event_tag": ..., "intensity": ...} sent back to game unitu side

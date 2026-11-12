@@ -1,0 +1,5 @@
+input: session start and end, time marks (calibration/game start end), events, eeg data and input logger stuff
+
+process: creates folder for the session, writes all data into csv as it comes in. at the end it waits for any analysis still running, closes all everything and then writes a summary of the whole session.
+
+output: raw_eeg.csv, neeuro.csv, heart.csv, events.csv, inputs.csv and data_brain.json in output/<session name>
