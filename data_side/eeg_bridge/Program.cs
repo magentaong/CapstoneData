@@ -44,7 +44,6 @@ namespace EegBridge
             }
 
             source.RawEeg200ms += data => link.Send(Json.Obj("type", "eeg", "data", data));
-            source.HeartRate += (spo2, hr, detected) => link.Send(Json.Obj("type", "hr", "hr", hr, "spo2", spo2, "detected", detected));
             source.ChannelStatus += ch => link.Send(Json.Obj("type", "quality", "channels", ch));
             source.Impedance += k => link.Send(Json.Obj("type", "impedance", "kohm", k));
             source.Evoke += ms => link.Send(Json.Obj("type", "evoke", "ms", ms));

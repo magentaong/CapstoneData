@@ -8,7 +8,6 @@ namespace EegBridge
 
         event Action<float[]> RawEeg200ms;
 
-        event Action<int, int, int> HeartRate;
         event Action<bool[]> ChannelStatus;
         event Action<float[]> Impedance;
 

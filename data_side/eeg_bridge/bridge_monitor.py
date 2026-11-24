@@ -115,7 +115,7 @@ def receive_loop(sock):
                 print(f"\n[evoke] marker recorded at {m.get('ms')} ms after first EEG packet")
             elif kind in ("sdk_state", "flag"):
                 latest[m["name"]] = m["value"]
-            elif kind in ("hr", "quality", "impedance", "bands"):
+            elif kind in ("quality", "impedance", "bands"):
                 latest[kind] = m
                 if kind == "bands" and recorder:
                     recorder.write(m["t"], latest, m)
@@ -171,8 +171,6 @@ def summary_line(n, bad, lo, hi, lag, snap):
         parts.append("µV range " + "  ".join(f"{SHORT[c]} {hi[c] - lo[c]:5.0f}" for c in range(4)))
     if lag is not None:
         parts.append(f"delay {lag * 1000:.0f} ms")
-    if "hr" in snap:
-        parts.append(f"HR {snap['hr'].get('hr')} SpO2 {snap['hr'].get('spo2')}")
     if "quality" in snap:
         parts.append("contact " + "".join("✓" if ok else "✗" for ok in snap["quality"]["channels"]))
     if "impedance" in snap:

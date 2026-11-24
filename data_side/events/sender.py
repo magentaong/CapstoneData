@@ -6,13 +6,14 @@ payload should still be the event type followed and intensity update value
 """
 import threading
 
-from events.messages import stress_message
+from events.messages import recommendation, stress_message
 
 
 class EventSender:
     def __init__(self, transport=None):
         self._lock = threading.Lock()
         self.transport = transport
+        self.sequence = 0
 
     def attach(self, transport):
         with self._lock:
@@ -22,11 +23,13 @@ class EventSender:
         payload = stress_message(event_tag, intensity)
         with self._lock:
             transport = self.transport
+            self.sequence += 1
+            message = recommendation(payload, self.sequence)
         if transport is None:
             print(f"[sender] no game connected, not sent: {payload}")
             return payload
         try:
-            transport(dict(payload))
+            transport(message)
         except Exception as e:
             print(f"[sender] could not send {payload}: {e!r}")
             return payload

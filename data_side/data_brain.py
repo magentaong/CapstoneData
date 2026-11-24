@@ -10,7 +10,7 @@ import sys
 import threading
 import time
 
-from analysis.gameplay import GameplayAnalysis
+from analysis.gameplay import GameplayAnalysis, next_event, stress_result
 from calibration.baseline import BaselineReceiver
 from calibration.processor import CalibrationProcessor
 from common import now
@@ -19,6 +19,7 @@ from events.messages import STRESS_TYPES, parse_game_event
 from events.receiver import EventReceiver
 from events.sender import EventSender
 from profiling.input_logger import InputLogger
+from profiling.mock_inputs import MockInputs
 from profiling.profiler import write_profile
 from session.manager import SessionManager
 from session.recorder import iso
@@ -63,14 +64,29 @@ class DataBrain:
         self.sessions.mark(s, "game_end", m.get("t", now()))
         threading.Thread(target=self.finish, args=(s,), daemon=True).start()
 
-    def on_game_event(self, m):
-        s = self._require_active()
-        if m["stress_type"] not in STRESS_TYPES:
-            print(f"[receiver] unknown stress_type {m['stress_type']!r}, recorded anyway")
-        ev = parse_game_event(m, len(s.events), now())
+    def on_event_started(self, m):
+        s = self._start_or_active(m)
+        self.collector.command("evoke")
+        if "calibration_end" not in s.marks:
+            # TODO: remove once the game sends calibration_start / calibration_end
+            print("[calibration] none from the game, using the EEG before the first event")
+            self.sessions.mark(s, "calibration_start", m["t"] - self.calibration.default_s)
+            self.sessions.mark(s, "calibration_end", m["t"])
+            self.sessions.add_worker(s, self.run_calibration, s)
+        if "game_start" not in s.marks:
+            self.sessions.mark(s, "game_start", m["t"])
+
+    def on_game_event(self, started, ended):
+        s = self._start_or_active(started)
+        ev = parse_game_event(started, ended, len(s.events), now())
+        if ev.stress_type not in STRESS_TYPES:
+            print(f"[receiver] unknown event_tag {ev.stress_type!r}, recorded anyway")
         s.events.append(ev)
         s.rec.event(ev.received, "game_event", ev.event_id, ev.stress_type, f"{ev.start:.4f}", f"{ev.end:.4f}")
         self.sessions.add_worker(s, self.analyse_and_send, s, ev)
+
+    def on_input(self, m):
+        self.input_logger.record(m)
 
     def run_calibration(self, s):
         profile = self.calibration.process(s.marks.get("calibration_start"), s.marks["calibration_end"])
@@ -78,12 +94,12 @@ class DataBrain:
         self.baseline.set(profile)
 
     def analyse_and_send(self, s, ev):
-        result = self.analysis.analyse(ev)
-        if result is None:
-            return
-        event_tag, intensity = result
-        ev.result = self.sender.send_stress(event_tag, intensity)
-        s.rec.event(now(), "stress_sent", ev.event_id, ev.result["event_tag"], label=f"intensity {ev.result['intensity']}")
+        ev.score = self.analysis.analyse(ev)
+        result = stress_result(ev, ev.score)
+        if result is not None:
+            ev.result = {"event_tag": result[0], "intensity": result[1]}
+        ev.sent = self.sender.send_stress(*next_event(s.events, ev))
+        s.rec.event(now(), "stress_sent", ev.event_id, ev.sent["event_tag"], label=f"intensity {ev.sent['intensity']}")
 
     def add_marker(self, label):
         s = self.sessions.active()
@@ -108,7 +124,7 @@ class DataBrain:
         if path:
             self.run_profiler(path)
 
-    def run(self, record=False, name=None):
+    def run(self, record=False, name=None, mock_inputs=False):
         # Start the EEG collector and the WebSocket, then run until Ctrl+C
         self.collector.start()
         self.transport = WebSocketGameTransport(self.receiver.handle, self.input_logger.handle)
@@ -118,6 +134,11 @@ class DataBrain:
         if record:
             self.sessions.start(name, None, "manual")
             threading.Thread(target=self._markers, daemon=True).start()
+        mock = None
+        if mock_inputs:
+            print("[data brain] mock inputs on, these are fake")
+            mock = MockInputs(self.sessions.active, lambda: bool(self.receiver.pending), self.on_input)
+            mock.start()
         last_flush = 0.0
         try:
             while self.running:
@@ -127,8 +148,12 @@ class DataBrain:
                     last_flush = now()
         except KeyboardInterrupt:
             pass
+        if mock:
+            mock.stop()
         s = self.sessions.active()
         if s:
+            if "game_end" not in s.marks:
+                self.sessions.mark(s, "game_end", now())
             self.finish(s)
             time.sleep(0.2)
         self.running = False
@@ -145,7 +170,9 @@ class DataBrain:
                 self.add_marker(line)
 
 
+
 if __name__ == "__main__":
     args = sys.argv[1:]
-    rest = [a for a in args if a != "--record"]
-    DataBrain().run(record="--record" in args, name=rest[0] if rest else None)
+    rest = [a for a in args if a not in ("--record", "--mock-inputs")]
+    DataBrain().run(record="--record" in args, name=rest[0] if rest else None,
+                    mock_inputs="--mock-inputs" in args)

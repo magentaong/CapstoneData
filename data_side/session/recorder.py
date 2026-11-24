@@ -26,7 +26,6 @@ class Recorder:
         self.files, self.writers, self.rows = {}, {}, {}
         self._open("raw_eeg", ["Time", "Unix Time"] + CHANNELS)
         self._open("neeuro", ["Time", "Attention", "Relaxation", "Mental Workload"] + [f"{b.capitalize()} {ch}" for ch in CHANNELS for b in NEEURO_BANDS])
-        self._open("heart", ["Time", "Unix Time", "Heart Rate", "SpO2", "Detected"])
         self._open("events", ["Time", "Unix Time", "Event", "Event ID", "Stress Type", "Start", "End", "Label"])
         self._open("inputs", ["Time", "Unix Time", "Action", "Details"])
 
@@ -55,9 +54,6 @@ class Recorder:
                 i = bands["names"].index(b) if b in bands["names"] else None
                 row.append(_num(vals[i] if i is not None and i < len(vals) else None))
         self.write("neeuro", [row])
-
-    def heart(self, t, hr, spo2, detected):
-        self.write("heart", [[iso(t), f"{t:.4f}", hr, spo2, detected]])
 
     def event(self, t, kind, event_id="", stress_type="", start="", end="", label=""):
         self.write("events", [[iso(t), f"{t:.4f}", kind, event_id, stress_type, start, end, label]])
