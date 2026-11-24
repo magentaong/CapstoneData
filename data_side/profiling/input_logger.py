@@ -11,7 +11,7 @@ this just takes the information and suppose to combine with profiler
 import csv
 import json
 
-from common import now
+from events.messages import unwrap
 
 
 class InputLogger:
@@ -19,15 +19,21 @@ class InputLogger:
         self.get_session = get_session
 
     def handle(self, message):
-        if not isinstance(message, dict) or message.get("type") != "input":
+        if not isinstance(message, dict):
             print(f"[input logger] ignored message: {message!r}")
             return
+        kind, m = unwrap(message)
+        if kind != "input":
+            print(f"[input logger] ignored message: {message!r}")
+            return
+        self.record(m)
+
+    def record(self, m):
         s = self.get_session()
         if s is None:
             return
-        t = float(message.get("t", now()))
-        details = {k: v for k, v in message.items() if k not in ("type", "t", "action")}
-        s.rec.input(t, message.get("action", ""), json.dumps(details))
+        details = {k: v for k, v in m.items() if k not in ("t", "action")}
+        s.rec.input(float(m["t"]), m.get("action", ""), json.dumps(details))
 
 
 def load_inputs(path):
@@ -40,5 +46,15 @@ def load_inputs(path):
 
 
 def summarise(inputs, events):
-    # TODO: analysis of player inputs for the profile
-    pass
+    actions = {}
+    for r in inputs:
+        actions[r["Action"]] = actions.get(r["Action"], 0) + 1
+    per_event = []
+    for e in events:
+        during = [r for r in inputs if e["start"] <= r["Unix Time"] < e["end"]]
+        marked = [r["Details"]["correct"] for r in during if "correct" in r["Details"]]
+        per_event.append({"event_id": e["event_id"], "inputs": len(during),
+                          "accuracy": sum(marked) / len(marked) if marked else None})
+    span = inputs[-1]["Unix Time"] - inputs[0]["Unix Time"] if len(inputs) > 1 else 0
+    return {"total": len(inputs), "per_minute": len(inputs) / span * 60 if span else None,
+            "actions": actions, "per_event": per_event}

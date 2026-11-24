@@ -8,7 +8,6 @@ namespace EegBridge
     internal sealed class SimulatedSource : IEegSource
     {
         public event Action<float[]> RawEeg200ms;
-        public event Action<int, int, int> HeartRate;
         public event Action<bool[]> ChannelStatus;
         public event Action<float[]> Impedance;
         public event Action<int> Evoke;
@@ -25,7 +24,8 @@ namespace EegBridge
         private readonly Stopwatch _clock = new Stopwatch();
         private Timer _timer;
         private volatile bool _streaming, _impedance;
-        private long _n, _lastSlow;
+        private long _n, _lastSlow, _stressUntil;
+        private double _reaction;
 
         public void Begin()
         {
@@ -39,7 +39,7 @@ namespace EegBridge
         private void Tick()
         {
             long ms = _clock.ElapsedMilliseconds;
-            bool stressed = DateTime.UtcNow.Second % 20 > 14;
+            bool stressed = ms < _stressUntil;
 
             if (_streaming && !_impedance)
             {
@@ -50,6 +50,7 @@ namespace EegBridge
                         double t = (_n + i) / (double)Fs;
                         double uv = (stressed ? 6 : 15) * Math.Sin(2 * Math.PI * 10 * t)
                                   + (stressed ? 10 : 4) * Math.Sin(2 * Math.PI * 20 * t)
+                                  + (stressed ? _reaction : 0) * Math.Sin(2 * Math.PI * 2 * t + c)
                                   + Gauss() * 5;
                         data[c * PerChannel + i] = (float)(uv / UvPerUnit);
                     }
@@ -60,7 +61,6 @@ namespace EegBridge
             if (ms - _lastSlow >= 1000)
             {
                 _lastSlow = ms;
-                HeartRate?.Invoke(98, stressed ? 90 : 70, 1);
                 ChannelStatus?.Invoke(new[] { true, true, true, true });
                 Flag?.Invoke("signal_ready", true);
                 Flag?.Invoke("connection_ok", true);
@@ -87,7 +87,16 @@ namespace EegBridge
         public void StartEeg() { _streaming = true; Set("streaming", null); }
         public void StopEeg() { _streaming = false; Set("stopped", null); }
         public void ImpedanceCheck(bool on) { _impedance = on; Set(on ? "impedance_check" : "streaming", null); }
-        public void SendEvokeMarker() => Evoke?.Invoke((int)_clock.ElapsedMilliseconds);
+        public void SendEvokeMarker()
+        {
+            // an evoke marks a game event, the simulated player reacts to about half of them for 6 s
+            if (_rng.NextDouble() < 0.5)
+            {
+                _reaction = 2 + 3 * _rng.NextDouble();
+                _stressUntil = _clock.ElapsedMilliseconds + 6000;
+            }
+            Evoke?.Invoke((int)_clock.ElapsedMilliseconds);
+        }
 
         private void Set(string s, string d) { State = s; Status?.Invoke(s, d); }
 

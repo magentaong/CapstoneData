@@ -1,7 +1,7 @@
 """
 receives everything the EEG bridge sends and keeps it ready for the Data Brain
 
-EEG goes into the buffer, heart rate, neeuro values and contact quality kept here
+EEG goes into the buffer, neeuro values and contact quality kept here
 restarts bridge stream if data stops, created by data_brain.py and used by calibration and analysis
 """
 
@@ -17,7 +17,6 @@ class EEGCollector:
         self.buffer = EEGBuffer()
         self.get_recorder = get_recorder
         self.to_bridge = Sender(PORT_BRIDGE_CMD)
-        self.hr = []
         self.neeuro_states = {}
         self.neeuro_bands = None
         self.quality = [True] * len(CHANNELS)
@@ -44,9 +43,6 @@ class EEGCollector:
     def wait_until(self, t_end, timeout):
         return self.buffer.wait_until(t_end, timeout)
 
-    def hr_between(self, t0, t1):
-        return [h for (t, h) in self.hr if t0 <= t < t1]
-
     def _listen(self):
         rx = Receiver(PORT_EEG_IN)
         while self.running:
@@ -59,10 +55,6 @@ class EEGCollector:
                     out = self.buffer.add_packet(m["t"], m["data"])
                     if out and rec:
                         rec.eeg(*out)
-                elif kind == "hr":
-                    self.hr.append((m["t"], m["hr"]))
-                    if rec:
-                        rec.heart(m["t"], m["hr"], m.get("spo2"), m.get("detected"))
                 elif kind == "sdk_state":
                     self.neeuro_states[m["name"]] = m["value"]
                 elif kind == "bands":

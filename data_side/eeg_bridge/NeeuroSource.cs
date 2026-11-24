@@ -9,7 +9,6 @@ namespace EegBridge
     internal sealed class NeeuroSource : IEegSource, SenzeBandConnectInterface.deviceAuthenticationInterface
     {
         public event Action<float[]> RawEeg200ms;
-        public event Action<int, int, int> HeartRate;
         public event Action<bool[]> ChannelStatus;
         public event Action<float[]> Impedance;
         public event Action<int> Evoke;
@@ -50,10 +49,6 @@ namespace EegBridge
             SBCI.assignRawData200msDelegate(d => RawEeg200ms?.Invoke(d));
             SBCI.assignChannelDelegate(ch => ChannelStatus?.Invoke(ch));
             SBCI.assignImpedanceDelegate(k => Impedance?.Invoke(k));
-            SBCI.assignSPO2HeartRateDelegate(v =>
-            {
-                if (v != null && v.Length >= 3) HeartRate?.Invoke(v[0], v[1], v[2]);
-            });
             SBCI.assignEvokeDelegate(ms => Evoke?.Invoke(ms));
             SBCI.assignABDTDelegate(d => BandPower?.Invoke(d));
             SBCI.assignAttentionDelegate(v => MentalState?.Invoke("attention", v));

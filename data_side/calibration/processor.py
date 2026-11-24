@@ -1,12 +1,13 @@
 """
 creates player calibration profile when calibration ends
 
-takes the EEG and heart rate (probably will drop this, but minor changes)
-cleans the EEG and fits a new profile from it.
+takes the EEG from the calibration period, measures delta each second,
+smooths it with the moving average and fits a new profile from it.
 """
 
+from analysis.features import features, EPOCH_S
 from calibration.profile import CalibrationProfile
-from eeg.cleaner import clean
+from eeg.cleaner import MA_WINDOW_S, clean, artifact_mask
 
 DEFAULT_CALIBRATION_S = 20.0
 
@@ -22,5 +23,8 @@ class CalibrationProcessor:
         self.collector.wait_until(end, timeout=2)
         t, x = self.collector.window(start, end)
         profile = CalibrationProfile(start, end)
-        profile.fit(t, clean(x), self.collector.hr_between(start, end))
+        feats = features(x, artifact_mask(x))
+        smooth = clean(feats["delta"], EPOCH_S)
+        n = int(MA_WINDOW_S // 2 / EPOCH_S)
+        profile.fit(smooth[n:len(smooth) - n])
         return profile
